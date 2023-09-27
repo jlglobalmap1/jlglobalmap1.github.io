@@ -1,0 +1,324 @@
+<!-- Styles -->
+<style>
+#chartdiv {
+  width: 100%;
+  height: 300px;
+  max-width: 100%;
+}
+</style>
+
+<!-- Resources -->
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/map.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+<!-- Chart code -->
+<script>
+am5.ready(function() {
+
+  var data = [
+    {
+      id: "MC",
+      name: "Monaco (#1)",
+      value: 10  // control bubble size
+    }, {
+      id: "HK",
+      name: "Hong Kong (#2)",
+      value: 9
+    }, {
+      id: "US",
+      name: "New York City (#3)",
+      value: 8
+    }, {
+      id: "GB",
+      name: "London (#4)",
+      value: 7
+    }, {
+      id: "SG",
+      name: "Singapore (#5)",
+      value: 6
+    }, {
+      id: "JP",
+      name: "Tokyo (#6)",
+      value: 5
+    }, {
+      id: "FR",
+      name: "Paris (#7)",
+      value: 4
+    }, {
+      id: "RU",
+      name: "Moscow (#8)",
+      value: 3
+    }, {
+      id: "CH",
+      name: "Geneva (#9)",
+      value: 2
+    }, {
+      id: "AU",
+      name: "Sydney (#10)",
+      value: 1
+    }
+  ];
+
+// Create root element
+// https://www.amcharts.com/docs/v5/getting-started/#Root_element
+var root = am5.Root.new("chartdiv");
+
+
+// Set themes
+// https://www.amcharts.com/docs/v5/concepts/themes/
+root.setThemes([
+  am5themes_Animated.new(root)
+]);
+
+
+// Create the map chart
+// https://www.amcharts.com/docs/v5/charts/map-chart/
+var chart = root.container.children.push(am5map.MapChart.new(root, {
+  panX: "rotateX",
+  panY: "rotateY",
+  projection: am5map.geoOrthographic(),
+  paddingBottom: 20,
+  paddingTop: 20,
+  paddingLeft: 20,
+  paddingRight: 20
+}));
+
+
+// Create main polygon series for countries
+// https://www.amcharts.com/docs/v5/charts/map-chart/map-polygon-series/
+var polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+  geoJSON: am5geodata_worldLow ,
+  exclude: ["AQ"]
+}));
+
+polygonSeries.mapPolygons.template.setAll({
+  tooltipText: "{name}" ,
+  toggleKey: "active",
+  interactive: true
+});
+
+polygonSeries.mapPolygons.template.states.create("hover", {
+  fill: root.interfaceColors.get("primaryButtonHover")
+});
+
+polygonSeries.mapPolygons.template.states.create("active", {
+  fill: root.interfaceColors.get("primaryButtonHover")
+});
+
+var bubbleSeries = chart.series.push(
+    am5map.MapPointSeries.new(root, {
+      valueField: "value",
+      calculateAggregates: true,
+      polygonIdField: "id"
+    })
+  );
+  
+  var circleTemplate = am5.Template.new({});
+  
+  bubbleSeries.bullets.push(function(root, series, dataItem) {
+    var container = am5.Container.new(root, {});
+  
+    var circle = container.children.push(
+      am5.Circle.new(root, {
+        radius: 20,
+        fillOpacity: 0.5,  //0.7
+        //fill: am5.color(0xffff00),  //Yellow
+        fill: am5.color(0x00ffff),  //Blue
+        //fill: am5.color(0xaaffff),  //pale Blue
+        //fill: am5.color(0xff0000),  //Red
+        //fill: am5.color(0x55aaff),  //Navy
+        //fill: am5.color(0xffffff),  // White
+        cursorOverStyle: "pointer",
+        //tooltipText: `{name}: [bold]{value}[/]`
+        tooltipText: `{name}[/]`
+      }, circleTemplate)
+    );
+  
+    var countryLabel = container.children.push(
+      am5.Label.new(root, {
+        //text: "{name}",        
+        paddingLeft: 5,
+        populateText: true,
+        //fontWeight: "bold",
+        fontSize: 13,  //13
+        centerY: am5.p50
+      })
+    );
+  
+    circle.on("radius", function(radius) {
+      countryLabel.set("x", radius);
+    })
+  
+    return am5.Bullet.new(root, {
+      sprite: container,
+      dynamic: true
+    });
+  });
+  
+  bubbleSeries.bullets.push(function(root, series, dataItem) {
+    return am5.Bullet.new(root, {
+      sprite: am5.Label.new(root, {
+        //text: "{value.formatNumber('#.')}",
+        fill: am5.color(0xffffff),
+        populateText: true,
+        centerX: am5.p50,
+        centerY: am5.p50,
+        textAlign: "center"
+      }),
+      dynamic: true
+    });
+  });
+  
+  
+  
+  // minValue and maxValue must be set for the animations to work
+  bubbleSeries.set("heatRules", [
+    {
+      target: circleTemplate,
+      dataField: "value",
+      min: 1,  //10
+      max: 10,  //50
+      minValue: 0,
+      maxValue: 10,
+      key: "radius"
+    }
+  ]);
+  
+  bubbleSeries.data.setAll(data);
+
+// Create series for background fill
+// https://www.amcharts.com/docs/v5/charts/map-chart/map-polygon-series/#Background_polygon
+var backgroundSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {}));
+backgroundSeries.mapPolygons.template.setAll({
+  fill: root.interfaceColors.get("alternativeBackground"),
+  fillOpacity: 0.1,
+  strokeOpacity: 0
+});
+backgroundSeries.data.push({
+  geometry: am5map.getGeoRectangle(90, 180, -90, -180)
+});
+
+// Create graticule series
+// https://www.amcharts.com/docs/v5/charts/map-chart/graticule-series/
+var graticuleSeries = chart.series.push(am5map.GraticuleSeries.new(root, {}));
+graticuleSeries.mapLines.template.setAll({ strokeOpacity: 0.1, stroke: root.interfaceColors.get("alternativeBackground") })
+// Set up events
+var previousPolygon;
+
+// Rotate animation
+chart.animate({
+  key: "rotationX",
+  from: 0,
+  to: 360,
+  duration: 250000,
+  loops: Infinity
+});
+
+polygonSeries.mapPolygons.template.on("active", function(active, target) {
+  if (previousPolygon && previousPolygon != target) {
+    previousPolygon.set("active", false);
+  }
+  if (target.get("active")) {
+    selectCountry(target.dataItem.get("id"));
+    //console.log (target.dataItem.get("id")) // Country code
+  }
+  previousPolygon = target;
+});
+
+function selectCountry(id) {
+  var dataItem = polygonSeries.getDataItemById(id);
+  var target = dataItem.get("mapPolygon");
+  if (target) {
+    console.log (id)  // Country code
+    var centroid = target.geoCentroid();
+    if (centroid) {
+      //console.log (centroid)  // Country lonitude & Latitude
+      chart.animate({ key: "rotationX", to: -centroid.longitude, duration: 1500, easing: am5.ease.inOut(am5.ease.cubic) });
+      chart.animate({ key: "rotationY", to: -centroid.latitude, duration: 1500, easing: am5.ease.inOut(am5.ease.cubic) });
+    }
+  }
+  
+  //return id;
+}
+
+//map.addListener("clickMapObject", function(event){
+//  $('#tempInfo').html(event.mapObject.infoTitle); // Changes with clicking
+//});
+//console.log('testck','#tempInfo')
+//map.addListener("clickMapObject", function (event) {
+//    document.getElementById("info").innerHTML = 'Clicked ID: ' + event.mapObject.id + ' (' + event.mapObject.title + ')';
+//});
+
+//map.addListener("clickMapObject", function (event) {
+//    alert( 'Clicked ID: ' + event.mapObject.id + ' (' + event.mapObject.title + ')' );
+//});
+
+//let result = function selectCountry(id) 
+// Uncomment this to pre-center the globe on a country when it loads
+//polygonSeries.events.on("datavalidated", function() {
+//  selectCountry("AU");
+//});
+
+// Add zoom control
+  // https://www.amcharts.com/docs/v5/charts/map-chart/map-pan-zoom/#Zoom_control
+  //chart.set("zoomControl", am5map.ZoomControl.new(root, {}));
+  
+  // Add labels and Globe/Map controls
+  /*
+  var cont = chart.children.push(
+    am5.Container.new(root, {
+      layout: root.horizontalLayout,
+      x: 20,
+      y: 40
+    })
+  );
+  
+  cont.children.push(
+    am5.Label.new(root, {
+      centerY: am5.p50,
+      text: "Globe"
+    })
+  );
+  
+  var switchButton = cont.children.push(
+    am5.Button.new(root, {
+      themeTags: ["switch"],
+      centerY: am5.p50,
+      icon: am5.Circle.new(root, {
+        themeTags: ["icon"]
+      })
+    })
+  );
+  
+  switchButton.on("active", function () {
+    //if (!switchButton.get("active")) {
+    if (switchButton.get("active")) {
+      chart.set("projection", am5map.geoMercator());
+      chart.set("panX", "translateX");
+      chart.set("panY", "translateY");
+    } else {
+      chart.set("projection", am5map.geoOrthographic());
+      chart.set("panX", "rotateX");
+      chart.set("panY", "rotateY");
+    }
+  });
+  
+  cont.children.push(
+    am5.Label.new(root, {
+      centerY: am5.p50,
+      text: "Map"
+    })
+  );
+  */
+  // Make stuff animate on load
+  chart.appear(1000, 100);
+
+
+}); // end am5.ready()
+
+</script>
+
+<!-- HTML -->
+<div id="chartdiv"></div>
